@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Window};
 
 use crate::{
     error::{Error, ErrorKind},
@@ -11,10 +11,15 @@ pub fn restart_app(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn update_settings(app: AppHandle, new_settings: Settings) -> Result<(), Error> {
+pub fn hide_window(window: Window) {
+    let _ = window.hide();
+}
+
+#[tauri::command]
+pub fn update_settings(app: AppHandle, settings: Settings) -> Result<(), Error> {
     let settings_path = get_settings_path(&app)?;
 
-    let settings_json = serde_json::to_string(&new_settings).map_err(|e| {
+    let settings_json = serde_json::to_string(&settings).map_err(|e| {
         Error::new(
             ErrorKind::Serialization,
             e.to_string(),

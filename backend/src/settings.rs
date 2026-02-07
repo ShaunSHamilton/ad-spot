@@ -7,7 +7,7 @@ pub const SETTINGS_PATH: &str = "settings.json";
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Settings {
-    pub enabled: bool,
+    pub open_to_tray: bool,
 }
 
 pub fn get_settings_path(app: &AppHandle) -> Result<PathBuf, tauri::Error> {

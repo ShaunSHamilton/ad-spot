@@ -1,6 +1,5 @@
 use std::path::Path;
 use std::ptr;
-use std::{thread, time::Duration};
 
 use windows::Win32::Foundation::{HWND, LPARAM, MAX_PATH};
 use windows::Win32::Media::Audio::{
@@ -25,33 +24,61 @@ struct ScanContext {
     target_bin: String,
 }
 
-struct AudioController {
-    endpoint: IAudioEndpointVolume,
+pub struct AudioController {
+    pub endpoint: IAudioEndpointVolume,
 }
 
 impl AudioController {
-    unsafe fn new() -> Result<Self> {
+    pub unsafe fn new() -> Result<Self> {
         // initialize COM library for this thread
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED).ok();
-        };
 
-        let enumerator: IMMDeviceEnumerator =
-            unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)? };
-        let device = unsafe { enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia)? };
-        let endpoint: IAudioEndpointVolume = unsafe { device.Activate(CLSCTX_ALL, None) }?;
+            let enumerator: IMMDeviceEnumerator =
+                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+            let device = enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia)?;
+            let endpoint: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None)?;
 
-        Ok(AudioController { endpoint })
+            Ok(AudioController { endpoint })
+        }
     }
 
-    unsafe fn set_mute(&self, mute: bool) -> Result<()> {
-        // only set if state is different to avoid flickering
-        let current_state = unsafe { self.endpoint.GetMute() }?.as_bool();
-        if current_state != mute {
-            unsafe { self.endpoint.SetMute(mute, ptr::null()) }?;
-            println!("Audio Status: [{}]", if mute { "MUTED" } else { "UNMUTED" });
+    /// If `set_mute` fails, it is likely due to a change in the audio endpoint (e.g. audio device change)
+    unsafe fn set_mute(&mut self, mute: bool) -> Result<()> {
+        unsafe {
+            let current_state = match self.endpoint.GetMute() {
+                Ok(m) => m.as_bool(),
+                Err(e) => {
+                    eprintln!("{e:?}");
+                    self.reset_device()?;
+                    self.endpoint.GetMute()?.as_bool()
+                }
+            };
+            if current_state != mute {
+                self.endpoint.SetMute(mute, ptr::null())?;
+                println!("Audio Status: [{}]", if mute { "MUTED" } else { "UNMUTED" });
+            }
         }
         Ok(())
+    }
+
+    unsafe fn reset_device(&mut self) -> Result<()> {
+        unsafe {
+            let endpoint = self.get_endpoint()?;
+            self.endpoint = endpoint;
+        }
+        Ok(())
+    }
+
+    unsafe fn get_endpoint(&self) -> Result<IAudioEndpointVolume> {
+        unsafe {
+            let enumerator: IMMDeviceEnumerator =
+                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+            let device = enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia)?;
+            let endpoint: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None)?;
+
+            Ok(endpoint)
+        }
     }
 }
 
@@ -114,40 +141,24 @@ unsafe extern "system" fn enum_window_callback(window: HWND, lparam: LPARAM) -> 
     BOOL(1)
 }
 
-// fn main() -> Result<()> {
-//     println!("Initializing Monitor...");
-//     println!("Target App:   {}", TARGET_BIN);
-//     println!("Mute Trigger: \"{}\"", TRIGGER_TITLE);
-//     println!("{:-<40}", "-");
+pub unsafe fn scan(audio_controller: &mut AudioController) -> Result<()> {
+    let mut context = ScanContext {
+        found_trigger: false,
+        target_bin: TARGET_BIN.to_string(),
+    };
 
-//     unsafe {
-//         let audio = match AudioController::new() {
-//             Ok(a) => a,
-//             Err(e) => {
-//                 eprintln!("Failed to init audio: {:?}", e);
-//                 return Ok(());
-//             }
-//         };
+    unsafe {
+        EnumWindows(
+            Some(enum_window_callback),
+            LPARAM(&mut context as *mut _ as isize),
+        )?;
 
-//         loop {
-//             let mut context = ScanContext {
-//                 found_trigger: false,
-//                 target_bin: TARGET_BIN.to_string(),
-//             };
+        if context.found_trigger {
+            audio_controller.set_mute(true)?;
+        } else {
+            audio_controller.set_mute(false)?;
+        };
+    }
 
-//             // run the scan
-//             EnumWindows(
-//                 Some(enum_window_callback),
-//                 LPARAM(&mut context as *mut _ as isize),
-//             )?;
-
-//             if context.found_trigger {
-//                 audio.set_mute(true)?;
-//             } else {
-//                 audio.set_mute(false)?;
-//             }
-
-//             thread::sleep(Duration::from_millis(1000));
-//         }
-//     }
-// }
+    Ok(())
+}

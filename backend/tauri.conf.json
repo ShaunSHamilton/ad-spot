@@ -4,10 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.ad-spot.app",
   "build": {
-    "beforeDevCommand": "bun run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
-    "frontendDist": "../dist",
+    "frontendDist": "../frontend",
     "removeUnusedCommands": true
   },
   "app": {
@@ -19,7 +16,8 @@
     ],
     "security": {
       "csp": null
-    }
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,

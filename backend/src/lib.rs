@@ -5,7 +5,7 @@ use tauri::{
 };
 
 use crate::{
-    commands::{get_settings, update_settings},
+    commands::update_settings,
     settings::{get_settings_path, Settings},
 };
 
@@ -19,7 +19,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::restart_app,
             commands::get_settings,
-            commands::update_settings
+            commands::update_settings,
+            commands::hide_window
         ])
         .setup(setup)
         .on_window_event(on_window_event)
@@ -62,16 +63,15 @@ fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     {
         std::thread::Builder::new()
             .name("app-mute-monitor".into())
-            .spawn(|| {
-                // Create and own the monitor inside the thread
-                match app_mute::Monitor::new() {
-                    Ok(monitor) => loop {
-                        if let Err(e) = monitor.check_and_apply() {
-                            eprintln!("app-mute monitor error: {:?}", e);
+            .spawn(|| unsafe {
+                match app_mute::AudioController::new() {
+                    Ok(mut audio_controller) => loop {
+                        if let Err(e) = app_mute::scan(&mut audio_controller) {
+                            eprintln!("app-mute scan error: {:?}", e);
                         }
-                        std::thread::sleep(std::time::Duration::from_millis(1000));
+                        std::thread::sleep(std::time::Duration::from_secs(2));
                     },
-                    Err(e) => eprintln!("Failed to init app-mute monitor: {:?}", e),
+                    Err(e) => eprintln!("failed to create audio controller: {:?}", e),
                 }
             })
             .map_err(|e| eprintln!("Failed to spawn app-mute monitor thread: {:?}", e))

@@ -1,6 +1,6 @@
 [package]
 name = "ad-spot"
-version = "0.1.0"
+version = "0.2.0"
 description = "A desktop tray application to mute audio when spotify ads play"
 authors = ["Shaun Hamilton"]
 edition = "2021"
