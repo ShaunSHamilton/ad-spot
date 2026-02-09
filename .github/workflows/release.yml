@@ -53,6 +53,8 @@ jobs:
         include:
           - platform: "windows-latest"
             bundles: "nsis"
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -64,8 +66,6 @@ jobs:
           node-version: 24.x
 
       - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
 
       - name: get version
         id: version
@@ -103,8 +103,6 @@ jobs:
             core.setOutput('args', args.join(' '));
 
       - uses: tauri-apps/tauri-action@dev
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ steps.build-args.outputs.args }} ${{ env.TAURI_VERBOSE_FLAG }}
