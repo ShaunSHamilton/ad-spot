@@ -5,12 +5,14 @@ on:
 
 jobs:
   create-release:
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    runs-on: ubuntu-latest
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
       version: ${{ steps.version.outputs.version }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - uses: actions/checkout@v6
