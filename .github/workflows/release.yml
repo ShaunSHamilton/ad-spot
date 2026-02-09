@@ -105,12 +105,9 @@ jobs:
       - uses: tauri-apps/tauri-action@dev
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ steps.build-args.outputs.args }} ${{ env.TAURI_VERBOSE_FLAG }}
-          uploadUpdaterJson: true
           tagName: ${{ steps.version.outputs.version }}
           # As the release is not published yet, this must be set: https://github.com/tauri-apps/tauri-action?tab=readme-ov-file#tips-and-caveats
           releaseDraft: true
